@@ -6513,7 +6513,7 @@ MonoBehaviour:
   enemyPrefabs:
   - {fileID: 4744834957053058479, guid: e461b19670f74b945bc73ed42d05bbff, type: 3}
   baseEnemies: 8
-  enemiesPerSecond: 0.5
+  enemiesPerSecond: 2
   timeBetweenWaves: 5
   difficultyScalingFactor: 0.75
 --- !u!1001 &680422437
