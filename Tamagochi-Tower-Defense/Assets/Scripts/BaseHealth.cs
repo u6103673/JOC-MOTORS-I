@@ -28,6 +28,8 @@ public class BaseHealth : MonoBehaviour {
     private Text timerText;
     private Text gameOverText;
     private Text victoryText;
+    private Text clearText;
+    private float clearTextHideAt;
 
     private void Awake() {
         main = this;
@@ -49,12 +51,15 @@ public class BaseHealth : MonoBehaviour {
             Lives--;
             if (Lives <= 0) {
                 GameOver();
-            } else {
-                // Pierde una vida: se limpia la pantalla, se rellena la barra y se pausa el spawner.
-                Health = maxHealth;
-                invulnerableUntil = Time.time + clearPause;
-                if (EnemySpawner.main != null) EnemySpawner.main.ClearEnemiesAndPause(clearPause);
-            }
+        } else {
+            // Perd una vida: es neteja la pantalla, s'omple la barra i es pausa l'spawner.
+            Health = maxHealth;
+            invulnerableUntil = Time.time + clearPause;
+            if (EnemySpawner.main != null) EnemySpawner.main.ClearEnemiesAndPause(clearPause);
+
+            clearText.gameObject.SetActive(true);
+            clearTextHideAt = Time.time + clearPause;
+}
         }
         Refresh();
     }
@@ -72,6 +77,10 @@ public class BaseHealth : MonoBehaviour {
     }
 
     private void Update() {
+        if (clearText.gameObject.activeSelf && Time.time >= clearTextHideAt) {
+        clearText.gameObject.SetActive(false);
+     }
+
         if (!IsFinished) {
             elapsed += Time.deltaTime;
             if (elapsed >= surviveTime) Win();
@@ -147,7 +156,14 @@ public class BaseHealth : MonoBehaviour {
         victoryText.color = new Color(0.3f, 1f, 0.4f);
         victoryText.text = "NIVEL SUPERADO\n<size=40>Pulsa R para reiniciar</size>";
         victoryText.gameObject.SetActive(false);
+
+        clearText = NewText("ClearText", canvasGo.transform, 60, TextAnchor.MiddleCenter);
+        StretchFull(clearText.rectTransform);
+        clearText.color = new Color(1f, 0.9f, 0.2f);
+        clearText.text = "[PLACEHOLDER ANIMACIÓ]\n<size=40>Bitxet matant tots els enemics</size>";
+        clearText.gameObject.SetActive(false);
     }
+    
 
     private static RectTransform NewRect(string name, Transform parent) {
         var go = new GameObject(name, typeof(RectTransform));
