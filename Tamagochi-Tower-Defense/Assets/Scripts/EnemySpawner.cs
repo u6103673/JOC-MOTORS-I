@@ -1,8 +1,10 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
 public class EnemySpawner : MonoBehaviour {
+    public static EnemySpawner main;
 
     [Header("References")]
     [SerializeField] private GameObject[] enemyPrefabs;
@@ -19,9 +21,17 @@ public class EnemySpawner : MonoBehaviour {
     private int enemiesAlive;
     private int enemiesLeftToSpawn;
     private bool isSpawning = false;
+    private float pausedUntil;
 
     private void Awake() {
+        main = this;
         onEnemyDestroy.AddListener(EnemyDestroyed);
+    }
+
+    private void OnDestroy() {
+        // El evento es estático: sin esto, al reiniciar con R se acumulan listeners de spawners destruidos.
+        onEnemyDestroy.RemoveListener(EnemyDestroyed);
+        if (main == this) main = null;
     }
 
     private void Start() {
@@ -30,6 +40,7 @@ public class EnemySpawner : MonoBehaviour {
 
     private void Update() {
         if (!isSpawning) return;
+        if (Time.time < pausedUntil) return; // pausa tras perder una vida
 
         timeSinceLastSpawn += Time.deltaTime;
         if (timeSinceLastSpawn >= (1f / enemiesPerSecond) && enemiesLeftToSpawn > 0) {
@@ -44,8 +55,20 @@ public class EnemySpawner : MonoBehaviour {
         }
     }
 
+    /// <summary>Elimina todos los enemigos en pantalla y bloquea la generación durante "seconds".</summary>
+    public void ClearEnemiesAndPause(float seconds) {
+        var list = new List<EnemyMovement>(EnemyMovement.Active);
+        foreach (var e in list) {
+            e.IsDead = true;          // las torres dejan de apuntarle
+            Destroy(e.gameObject);
+        }
+        enemiesAlive = 0;
+        timeSinceLastSpawn = 0f;
+        pausedUntil = Time.time + seconds;
+    }
+
     private void EnemyDestroyed() {
-        enemiesAlive--;
+        enemiesAlive = Mathf.Max(0, enemiesAlive - 1);
     }
 
     private IEnumerator StartWave() {

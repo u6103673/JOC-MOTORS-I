@@ -16,7 +16,7 @@ public class EnemyMovement : MonoBehaviour {
     [Header("Attributes")]
     [SerializeField] private float moveSpeed = 2f;
     [SerializeField] private float hitRadius = 0.3f;
-    [SerializeField, Tooltip("Vida que le quita a la base si llega al final del camino")] private float damageToBase = 10f;
+    [SerializeField, Tooltip("Vida que le quita a la base si llega al final del camino")] private float damageToBase = 1f;
 
     private Transform target;
     private int pathIndex = 0;

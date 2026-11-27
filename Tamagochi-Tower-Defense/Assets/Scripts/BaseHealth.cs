@@ -3,37 +3,60 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 /// <summary>
-/// Vida de la base. Cada enemigo que llega al final del camino le quita vida.
-/// Dibuja sola una barra arriba a la izquierda; basta con poner este script en un objeto vacio.
+/// Vida de la base con 2 vidas. Si se sobrevive "surviveTime" segundos, se supera el nivel.
 /// </summary>
 public class BaseHealth : MonoBehaviour {
     public static BaseHealth main;
 
-    [SerializeField] private float maxHealth = 100f;
+    [SerializeField] private float maxHealth = 5f;
+    [SerializeField] private int maxLives = 2;
+    [SerializeField, Tooltip("Segundos sin enemigos tras perder una vida")] private float clearPause = 2f;
+    [SerializeField, Tooltip("Segundos a sobrevivir para superar el nivel")] private float surviveTime = 300f;
 
     public float Health { get; private set; }
+    public int Lives { get; private set; }
     public bool IsGameOver { get; private set; }
+    public bool IsVictory { get; private set; }
+    public bool IsFinished => IsGameOver || IsVictory;
+
+    private float elapsed;
+    private float invulnerableUntil;
 
     private RectTransform fill;
     private Image fillImage;
     private Text label;
+    private Text timerText;
     private Text gameOverText;
+    private Text victoryText;
 
     private void Awake() {
         main = this;
         Time.timeScale = 1f;
         Health = maxHealth;
+        Lives = maxLives;
         BuildUI();
         Refresh();
     }
 
     public void TakeDamage(float amount) {
-        if (IsGameOver) return;
+        Debug.Log("TakeDamage amount=" + amount + " Health=" + Health + " Lives=" + Lives);
+        if (IsFinished) return;
+        if (Time.time < invulnerableUntil) return; // evita daño de enemigos que llegan en el mismo frame
 
         Health = Mathf.Max(0f, Health - amount);
-        Refresh();
 
-        if (Health <= 0f) GameOver();
+        if (Health <= 0f) {
+            Lives--;
+            if (Lives <= 0) {
+                GameOver();
+            } else {
+                // Pierde una vida: se limpia la pantalla, se rellena la barra y se pausa el spawner.
+                Health = maxHealth;
+                invulnerableUntil = Time.time + clearPause;
+                if (EnemySpawner.main != null) EnemySpawner.main.ClearEnemiesAndPause(clearPause);
+            }
+        }
+        Refresh();
     }
 
     private void GameOver() {
@@ -42,9 +65,21 @@ public class BaseHealth : MonoBehaviour {
         Time.timeScale = 0f;
     }
 
+    private void Win() {
+        IsVictory = true;
+        victoryText.gameObject.SetActive(true);
+        Time.timeScale = 0f;
+    }
+
     private void Update() {
-        // Con la partida terminada, R reinicia el nivel.
-        if (IsGameOver && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) {
+        if (!IsFinished) {
+            elapsed += Time.deltaTime;
+            if (elapsed >= surviveTime) Win();
+            RefreshTimer();
+        }
+
+        // Con la partida terminada (derrota o victoria), R reinicia el nivel.
+        if (IsFinished && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) {
             UnityEngine.SceneManagement.SceneManager.LoadScene(
                 UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
         }
@@ -54,7 +89,14 @@ public class BaseHealth : MonoBehaviour {
         float ratio = Mathf.Clamp01(Health / maxHealth);
         fill.anchorMax = new Vector2(ratio, 1f);
         fillImage.color = Color.Lerp(new Color(0.9f, 0.15f, 0.15f), new Color(0.25f, 0.85f, 0.3f), ratio);
-        label.text = "Vida: " + Mathf.CeilToInt(Health) + " / " + Mathf.CeilToInt(maxHealth);
+        label.text = "Vida: " + Mathf.CeilToInt(Health) + " / " + Mathf.CeilToInt(maxHealth)
+                   + "   Vidas: " + Lives;
+        RefreshTimer();
+    }
+
+    private void RefreshTimer() {
+        int remaining = Mathf.Max(0, Mathf.CeilToInt(surviveTime - elapsed));
+        timerText.text = string.Format("{0}:{1:00}", remaining / 60, remaining % 60);
     }
 
     // ---------------------------------------------------------------- UI
@@ -87,11 +129,24 @@ public class BaseHealth : MonoBehaviour {
         label = NewText("Label", bg, 24, TextAnchor.MiddleCenter);
         StretchFull(label.rectTransform);
 
+        // temporizador arriba en el centro
+        timerText = NewText("Timer", canvasGo.transform, 48, TextAnchor.UpperCenter);
+        RectTransform tr = timerText.rectTransform;
+        tr.anchorMin = tr.anchorMax = tr.pivot = new Vector2(0.5f, 1f);
+        tr.anchoredPosition = new Vector2(0f, -30f);
+        tr.sizeDelta = new Vector2(300f, 70f);
+
         gameOverText = NewText("GameOver", canvasGo.transform, 90, TextAnchor.MiddleCenter);
         StretchFull(gameOverText.rectTransform);
         gameOverText.color = new Color(1f, 0.25f, 0.25f);
         gameOverText.text = "GAME OVER\n<size=40>Pulsa R para reiniciar</size>";
         gameOverText.gameObject.SetActive(false);
+
+        victoryText = NewText("Victory", canvasGo.transform, 90, TextAnchor.MiddleCenter);
+        StretchFull(victoryText.rectTransform);
+        victoryText.color = new Color(0.3f, 1f, 0.4f);
+        victoryText.text = "NIVEL SUPERADO\n<size=40>Pulsa R para reiniciar</size>";
+        victoryText.gameObject.SetActive(false);
     }
 
     private static RectTransform NewRect(string name, Transform parent) {

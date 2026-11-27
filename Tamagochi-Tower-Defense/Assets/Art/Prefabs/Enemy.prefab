@@ -172,4 +172,4 @@ MonoBehaviour:
   rb: {fileID: -923196650197732570}
   moveSpeed: 4
   hitRadius: 0.3
-  damageToBase: 10
+  damageToBase: 1
